@@ -1,25 +1,150 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template.Rmd"
+output: html_document
 ---
 
+##1.Loading and processing the data
+ 
+```{r Loadpackages}
 
-## Loading and preprocessing the data
+library(ggplot2)
+library(dplyr)
+```
+
+```{r Loaddata}
+
+Activity <- read.csv(file = "activity.csv",na.strings =NA)  
+summary(Activity)
+head(Activity)
+names(Activity)
+Activity$date <- as.Date(Activity$date,"%Y-%m-%d")
+head(Activity$date)
+
+#Dpylr seems to be not removing NA.RM effectively. Hence removing
+#them here
+NActivity <-Activity[!is.na(Activity$steps),]
+
+```
+##2. Histogram of the total number of steps take each day
+
+```{r Histogram}
+
+TActivity <- NActivity %>% group_by(date) %>% summarize(Totsteps = sum(steps))
+
+head(TActivity)
+hist(TActivity$Totsteps,col ="Brown",main="Total steps taken each day",xlab="Total steps")
+
+```
+
+##3. Mean and median for number of steps taken
+
+``` {r Meanmedian}
+mean_act <- round(mean(TActivity$Totsteps),2)
+mean_act
+median_act <- median(TActivity$Totsteps)
+median_act
+#hist(TActivity$Totsteps,main="Total steps taken each day Mean (red) and Median (blue)",xlab="Total steps")
+#abline(v=mean_act,col="red",lwd=1)
+#abline(v=median_act,col="blue",lwd=1)
+
+```
+### The mean is `r mean_act` and median is `r median_act`
+
+##4. Time series plot of the average number of steps 
+
+```{r Timeseries}
+
+TIActivity <- NActivity %>% group_by(interval) %>% summarise(avgsteps = mean(steps,na.rm=TRUE))
+
+plot(TIActivity$interval,TIActivity$avgsteps,col="purple",type="l",xlab="Timeline",ylab="Average Steps",main="Time plot of average steps per day")
+
+```
+
+##5.Time interval
+
+``` {r Timeinterval}
+
+
+#Highest average interval and the average
+avgti <- arrange(TIActivity,desc(avgsteps))[1,1]
+avgst <- round(arrange(TIActivity,desc(avgsteps))[1,2],1)
+avgti
+avgst
+
+```
+### The highest average interval is `r avgti` and average steps
+### are `r avgst` 
+
+##6. Strategy for imputing missing values.
+ - How many NA's are there?
+ - Use mean of the time interval from above code.
+
+``` {r Imputing}
+
+#Total number of missing values.
+
+sum(is.na(Activity$steps))
+
+
+# Join the mean of the time interval
+NewActivity <- left_join(Activity,TIActivity)
+
+#Split it into na steps and !na. And replace avgsteps into steps
+NewActivityna <- NewActivity[is.na(NewActivity$steps),]
+NewActivitynna <- NewActivity[!is.na(NewActivity$steps),]
+
+NewActivityna$steps <-NewActivityna$avgsteps
+
+ActivityNew <- rbind(NewActivityna,NewActivitynna) 
+
+
+sum(is.na(ActivityNew$steps))
+
+```
+
+##7. Histogram without missing values
+
+``` {r newhist}
+TActivityNew <- ActivityNew %>% group_by(date) %>% summarize(Totsteps = sum(steps,na.rm=TRUE))
+
+hist(TActivityNew$Totsteps,col = "blue",main="Total steps taken each day with imputed values",xlab="Total steps")
+
+nmean_act <- round(mean(TActivityNew$Totsteps),0.01)
+nmean_act
+nmedian_act <- median(TActivityNew$Totsteps)
+nmedian_act
+
+```
+
+### OLD mean is `r mean_act` and median is `r median_act`
+### NEW mean is `r nmean_act` and median is `r nmedian_act`
+
+##8) 5 min interval plots  across weekends and weekdays
+
+``` {r week}
+
+cweekd <- function (x){
+  
+  if (x=="Sunday"|x=="Saturday"){
+      return ("Weekend")
+        }
+  else {
+    return ("Weekday")
+      }
+} 
+
+ActivityNew$weekd <- weekdays(ActivityNew$date)
+ActivityNew$weekd <- sapply(ActivityNew$weekd,cweekd)
+
+TIActivitynew <- ActivityNew %>% group_by(interval,weekd) %>% summarise(avgstepsnew = mean(steps,na.rm=TRUE))
+
+
+ggplot(TIActivitynew,aes(interval,avgstepsnew,color=weekd))+geom_line() +xlab("Time Interval") +
+  ylab(expression("Average steps")) +
+  ggtitle("Average steps per time interval by weekday type")
 
 
 
-## What is mean total number of steps taken per day?
+#plot ()
 
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+```
